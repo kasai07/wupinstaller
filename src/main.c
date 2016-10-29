@@ -18,6 +18,20 @@
 #define MCP_COMMAND_INSTALL_ASYNC   0x81
 #define MAX_INSTALL_PATH_LENGTH     0x27F
 
+char NameFolder[100][100];
+
+typedef struct {
+   
+	int count;
+	int pos;
+	int pos2;
+	int pos3;
+} Menu;
+
+Menu menupos;
+
+
+
 static int installCompleted = 0;
 static int installSuccess = 0;
 static int installToUsb = 0;
@@ -213,6 +227,45 @@ static void InstallTitle(const char *titlePath)
         OSFreeToSystem(mcpInstallInfo);
 }
 
+	
+static void GetNameFolder(void)
+{
+	
+	DIR *dirPtr;
+	struct dirent *dirEntry;     
+	dirPtr = opendir ("sd:/install/");
+	
+	
+	if (dirPtr != NULL)
+	{
+		
+		dirEntry = readdir(dirPtr);
+		
+		if (dirEntry != NULL && dirEntry->d_type == DT_DIR)
+		{
+			menupos.count = 0;
+			
+			while(true)
+			{
+				seekdir(dirPtr, menupos.count);
+				dirEntry = readdir(dirPtr);
+				
+				
+				if (dirEntry != NULL && dirEntry->d_type == DT_DIR)
+					__os_snprintf(NameFolder[menupos.count], 10000, "%s", dirEntry->d_name);
+				else
+				{
+					closedir (dirPtr);
+					break;
+				}
+				menupos.count++;
+			}
+			
+		}
+	}
+
+	
+}
 static void GetInstallDir(char *dest, int size)
 {
 	DIR *dirPtr;
@@ -369,21 +422,24 @@ int Menu_Main(void)
 		delay = 250;
 	}
 	
+	int button_pressed = 1;
+	GetNameFolder();
 	while(1)
     {
 		// print to TV and DRC
 		if(update_screen)
 		{
 			GetInstallDir(installFolder, sizeof(installFolder));
+			
 			OSScreenClearBufferEx(0, 0);
 			OSScreenClearBufferEx(1, 0);
 			for(int i = 0; i < 2; i++)
 			{
 				char text[80];
-
+				char text2[80];
 				OSScreenPutFontEx(i, 0, 0, TITLE_TEXT);
 				OSScreenPutFontEx(i, 0, 1, TITLE_TEXT2);
-				OSScreenPutFontEx(i, 0, 4, lastFolder);
+				OSScreenPutFontEx(i, 0, 3, lastFolder);
 				__os_snprintf(text, sizeof(text), "Install of title %08X-%08X ", (u32)(installedTitle >> 32), (u32)(installedTitle & 0xffffffff));
 				if( installSuccess)
 				{
@@ -393,17 +449,41 @@ int Menu_Main(void)
 				else if (installCompleted)
 				{
 					__os_snprintf(text, sizeof(text), "%s failed.", text);
-					OSScreenPutFontEx(i, 0, 3, text);
-					OSScreenPutFontEx(i, 0, 5, errorText1);
-					OSScreenPutFontEx(i, 0, 6, errorText2);
+					OSScreenPutFontEx(i, 0, 2, text);
+					OSScreenPutFontEx(i, 0, 4, errorText1);
+					OSScreenPutFontEx(i, 0, 5, errorText2);
 				}
 
 				if (!doInstall)
 				{
-					OSScreenPutFontEx(i, 0, 8, "Select Install Folder: (* = Selected)");
+					
 					__os_snprintf(text, sizeof(text), "%c  %s", folderSelect[dirNum] ? '*' : ' ', installFolder);
-					OSScreenPutFontEx(i, 0, 9, text);
-
+					
+					if(dirNum == 0)menupos.pos2 = 0;	
+					if(menupos.count > 3)
+					{
+						if(menupos.pos2+3 < dirNum)menupos.pos2++;
+						if(menupos.pos2 > dirNum)menupos.pos2--;
+						if(dirNum == menupos.count)menupos.pos2 = dirNum - 3;
+					}
+					menupos.pos = menupos.pos2;
+					
+					for (int t = 0; t < menupos.count; t++) 
+					{
+						__os_snprintf(text2, sizeof(text2), "%c  %s", folderSelect[menupos.pos] ? '*' : ' ', NameFolder[menupos.pos]);
+						
+						OSScreenPutFontEx(i, 5, 6+t, text2);
+						OSScreenPutFontEx(i, 5, 6+t, text2);
+						
+						if(menupos.pos == dirNum)
+						{
+							OSScreenPutFontEx(i, 1, 6+t, "=>");
+							OSScreenPutFontEx(i, 1, 6+t, "=>");
+						}
+						menupos.pos++;
+						if(t >= 3)break;
+					}
+					
 					OSScreenPutFontEx(i, 0, 10, "Press D-Pad U/D to change folder.");
 					OSScreenPutFontEx(i, 0, 11, "Press D-Pad L/R to (*)select/unselect folder.");
 					OSScreenPutFontEx(i, 0, 12, "Press + to select all folders, - to unselect all folders.");
@@ -473,25 +553,17 @@ int Menu_Main(void)
 			else
 				yPressed = 0;
 
-			// Up/Down Buttons
-			if (pressedBtns & VPAD_BUTTON_UP)
-			{
-				if (--delay <= 0)
+			if (!button_pressed)
+            {
+				if (pressedBtns & VPAD_BUTTON_DOWN)
 				{
-					if (dirNum < 1000)
-						dirNum++;
-					else
-						dirNum = 0;
-					delay = (vpad_data.btns_d & VPAD_BUTTON_UP) ? 6 : 0;
+					dirNum = (dirNum == menupos.count - 1) ? 0 : dirNum + 1;
+					
 				}
-			}
-			else if (pressedBtns & VPAD_BUTTON_DOWN)
-			{
-				if (--delay <= 0)
+				if (pressedBtns & VPAD_BUTTON_UP)
 				{
-					if (dirNum > 0)
-						dirNum--;
-					delay = (vpad_data.btns_d & VPAD_BUTTON_DOWN) ? 6 : 0;
+					dirNum = (dirNum == 0) ? menupos.count - 1 : dirNum - 1;
+					
 				}
 			}
 			else
@@ -527,7 +599,7 @@ int Menu_Main(void)
 			else
 				update_screen = (delay % 50 == 0) ? 1 : 0;
 		}
-
+		button_pressed = (vpad_data.btns_h & BTN_PRESSED) ? 1 : 0;
 		usleep(20000);
     }
 	GetInstallDir(installFolder, sizeof(installFolder));
