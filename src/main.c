@@ -470,15 +470,15 @@ int Menu_Main(void)
 					
 					for (int t = 0; t < menupos.count; t++) 
 					{
-						__os_snprintf(text2, sizeof(text2), "%c  %s", folderSelect[menupos.pos] ? '*' : ' ', NameFolder[menupos.pos]);
+						__os_snprintf(text2, sizeof(text2), "%c %s", folderSelect[menupos.pos] ? '*' : ' ', NameFolder[menupos.pos]);
 						
-						OSScreenPutFontEx(i, 5, 6+t, text2);
-						OSScreenPutFontEx(i, 5, 6+t, text2);
+						OSScreenPutFontEx(i, 3, 6+t, text2);
+						OSScreenPutFontEx(i, 3, 6+t, text2);
 						
 						if(menupos.pos == dirNum)
 						{
-							OSScreenPutFontEx(i, 1, 6+t, "=>");
-							OSScreenPutFontEx(i, 1, 6+t, "=>");
+							OSScreenPutFontEx(i, 0, 6+t, "=>");
+							OSScreenPutFontEx(i, 0, 6+t, "=>");
 						}
 						menupos.pos++;
 						if(t >= 3)break;
@@ -498,7 +498,9 @@ int Menu_Main(void)
 					OSScreenPutFontEx(i, 0, 9, text);
 					OSScreenPutFontEx(i, 0, 10, "Press B-Button to Cancel");
 				}
-
+				char text3[80];
+				__os_snprintf(text3, sizeof(text3), "(%d) Titles", menupos.count);
+				OSScreenPutFontEx(i, 50, 17, text3);
 				OSScreenPutFontEx(i, 0, 17, "Press HOME-Button to return to HBL.");
 			}
 
