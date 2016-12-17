@@ -12,8 +12,7 @@
 #include "fs/sd_fat_devoptab.h"
 #include <dirent.h>
 
-#define TITLE_TEXT                  "WUP installer by crediar (HBL version 1.0 by Dimok)"
-#define TITLE_TEXT2                 "[Mod 1.2.1 by Yardape8000]"
+#define TITLE_TEXT                  "WUP installer (credit to: crediar, Dimok and Yardape8000)"
 
 #define MCP_COMMAND_INSTALL_ASYNC   0x81
 #define MAX_INSTALL_PATH_LENGTH     0x27F
@@ -22,10 +21,10 @@ char NameFolder[100][100];
 
 typedef struct {
    
+	int index;
 	int count;
 	int pos;
 	int pos2;
-	int pos3;
 } Menu;
 
 Menu menupos;
@@ -163,17 +162,16 @@ static void InstallTitle(const char *titlePath)
                         OSScreenClearBufferEx(i, 0);
 
                         OSScreenPutFontEx(i, 0, 0, TITLE_TEXT);
-                        OSScreenPutFontEx(i, 0, 1, TITLE_TEXT2);
 						OSScreenPutFontEx(i, 0, 3, "Installing title...");
                         OSScreenPutFontEx(i, 0, 4, installFolder);
 
                         __os_snprintf(text, sizeof(text), "%08X%08X - %0.1f / %0.1f MB (%i%%)", titleIdHigh, titleIdLow, installedSize / (1024.0f * 1024.0f),
                                                                                                   totalSize / (1024.0f * 1024.0f), percent);
-                        OSScreenPutFontEx(i, 0, 5, text);
+                        OSScreenPutFontEx(i, 0, 6, text);
 
                         if(percent == 100)
                         {
-                            OSScreenPutFontEx(i, 0, 6, "Please wait...");
+                            OSScreenPutFontEx(i, 0, 7, "Please wait...");
                         }
                         // Flip buffers
                         OSScreenFlipBuffersEx(i);
@@ -227,7 +225,21 @@ static void InstallTitle(const char *titlePath)
         OSFreeToSystem(mcpInstallInfo);
 }
 
+
+static void Getmenupos(void)
+{
 	
+	if(dirNum == 0)menupos.pos2 = 0;	
+	
+	if(menupos.count > 5)
+	{
+		if((menupos.pos2 + 5) < dirNum)menupos.pos2++;
+		if(menupos.pos2 > dirNum)menupos.pos2--;
+		if(dirNum == menupos.count - 1)menupos.pos2 = dirNum - 5;
+	}
+	menupos.pos = menupos.pos2;
+
+}	
 static void GetNameFolder(void)
 {
 	
@@ -424,6 +436,7 @@ int Menu_Main(void)
 	
 	int button_pressed = 1;
 	GetNameFolder();
+	
 	while(1)
     {
 		// print to TV and DRC
@@ -438,8 +451,8 @@ int Menu_Main(void)
 				char text[80];
 				char text2[80];
 				OSScreenPutFontEx(i, 0, 0, TITLE_TEXT);
-				OSScreenPutFontEx(i, 0, 1, TITLE_TEXT2);
-				OSScreenPutFontEx(i, 0, 3, lastFolder);
+				
+				OSScreenPutFontEx(i, 0, 2, lastFolder);
 				__os_snprintf(text, sizeof(text), "Install of title %08X-%08X ", (u32)(installedTitle >> 32), (u32)(installedTitle & 0xffffffff));
 				if( installSuccess)
 				{
@@ -449,7 +462,7 @@ int Menu_Main(void)
 				else if (installCompleted)
 				{
 					__os_snprintf(text, sizeof(text), "%s failed.", text);
-					OSScreenPutFontEx(i, 0, 2, text);
+					OSScreenPutFontEx(i, 0, 3, text);
 					OSScreenPutFontEx(i, 0, 4, errorText1);
 					OSScreenPutFontEx(i, 0, 5, errorText2);
 				}
@@ -459,14 +472,7 @@ int Menu_Main(void)
 					
 					__os_snprintf(text, sizeof(text), "%c  %s", folderSelect[dirNum] ? '*' : ' ', installFolder);
 					
-					if(dirNum == 0)menupos.pos2 = 0;	
-					if(menupos.count > 3)
-					{
-						if(menupos.pos2+3 < dirNum)menupos.pos2++;
-						if(menupos.pos2 > dirNum)menupos.pos2--;
-						if(dirNum == menupos.count)menupos.pos2 = dirNum - 3;
-					}
-					menupos.pos = menupos.pos2;
+					Getmenupos();
 					
 					for (int t = 0; t < menupos.count; t++) 
 					{
@@ -481,15 +487,13 @@ int Menu_Main(void)
 							OSScreenPutFontEx(i, 0, 6+t, "=>");
 						}
 						menupos.pos++;
-						if(t >= 3)break;
+						if(t >= 5)break;
 					}
 					
-					OSScreenPutFontEx(i, 0, 10, "Press D-Pad U/D to change folder.");
-					OSScreenPutFontEx(i, 0, 11, "Press D-Pad L/R to (*)select/unselect folder.");
-					OSScreenPutFontEx(i, 0, 12, "Press + to select all folders, - to unselect all folders.");
-					OSScreenPutFontEx(i, 0, 13, "Press A-Button to install title(s) to system memory.");
-					OSScreenPutFontEx(i, 0, 14, "Press X-Button to install title(s) to USB storage.");
-					OSScreenPutFontEx(i, 0, 15, "Press Y-Button to remount the SD and rescan folders.");
+					OSScreenPutFontEx(i, 0, 13, "Up/Down to change folder.");
+					OSScreenPutFontEx(i, 0, 14, "Left/Right to (*)select/unselect folder.");
+					OSScreenPutFontEx(i, 0, 15, "+ to select all folders :  - to unselect all folders.");
+					OSScreenPutFontEx(i, 0, 16, "A install NAND : X install USB : Y refresh SD.");
 				}
 				else
 				{
